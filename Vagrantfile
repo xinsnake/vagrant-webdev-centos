@@ -65,12 +65,12 @@ Vagrant.configure("2") do |config|
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
   config.vm.provision "shell" do |shell|
-    shell.path = "centos-install-ansible.sh"
+    shell.path = "config/centos-install-ansible.sh"
     shell.privileged = true
   end
 
   config.vm.provision "ansible_local" do |ansible|
     ansible.verbose  = "v"
-    ansible.playbook = "vagrant-webdev-centos.yml"
+    ansible.playbook = "config/vagrant-webdev-centos.yml"
   end
 end
