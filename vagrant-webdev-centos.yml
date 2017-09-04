@@ -1,0 +1,46 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+
+    - name: Install yum packages
+      yum:
+        name:
+          - nginx
+          - php
+          - php-cli
+          - php-fpm
+          - php-gd
+          - php-mbstring
+          - php-mcrypt
+          - php-mysql
+          - php-pdo
+        state: latest
+
+    - name: Update php-fpm user to nginx
+      replace:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^(user|group) = apache$'
+        replace: '\1 = nginx'
+        backup: yes
+
+    - name: Get nginx-wwwroot config
+      copy:
+        src: /vagrant/config/nginx-wwwroot.conf
+        dest: /etc/nginx/conf.d/nginx-wwwroot.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Enable php-fpm
+      systemd:
+        name: php-fpm
+        enabled: true
+        state: restarted
+
+    - name: Enable nginx
+      systemd:
+        name: nginx
+        enabled: true
+        state: restarted
