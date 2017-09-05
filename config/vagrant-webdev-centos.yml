@@ -2,21 +2,27 @@
 - hosts: all
   become: yes
   become_user: root
-  tasks:
 
+  vars:
+    mysql_root_password: password
+
+  tasks:
     - name: Install yum packages
-      yum:
-        name:
-          - nginx
-          - php
-          - php-cli
-          - php-fpm
-          - php-gd
-          - php-mbstring
-          - php-mcrypt
-          - php-mysql
-          - php-pdo
-        state: latest
+      yum: name={{ item }} state=latest
+      with_items:
+        - mariadb
+        - mariadb-server
+        - nginx
+        - php
+        - php-cli
+        - php-fpm
+        - php-gd
+        - php-mbstring
+        - php-mcrypt
+        - php-mysql
+        - php-pdo
+        - php-pecl-xdebug
+        - MySQL-python
 
     - name: Update php-fpm user to nginx
       replace:
@@ -24,6 +30,36 @@
         regexp: '^(user|group) = apache$'
         replace: '\1 = nginx'
         backup: yes
+
+    - name: Update master php.ini - error_reporting
+      replace:
+        path: /etc/php.ini
+        regexp: '^(error_reporting) = .+'
+        replace: '\1 = E_ALL & ~E_NOTICE & ~E_STRICT'
+
+    - name: Update master php.ini - display_errors
+      replace:
+        path: /etc/php.ini
+        regexp: '^(display_errors) = .+'
+        replace: '\1 = On'
+
+    - name: Update master php.ini - html_errors
+      replace:
+        path: /etc/php.ini
+        regexp: '^(html_errors) = .+'
+        replace: '\1 = On'
+
+    - name: Update master php.ini - post_max_size
+      replace:
+        path: /etc/php.ini
+        regexp: '^(post_max_size) = .+'
+        replace: '\1 = 1024M'
+
+    - name: Update master php.ini - upload_max_filesize
+      replace:
+        path: /etc/php.ini
+        regexp: '^(upload_max_filesize) = .+'
+        replace: '\1 = 1024M'
 
     - name: Get nginx-wwwroot config
       copy:
@@ -33,14 +69,51 @@
         group: root
         mode: 0644
 
-    - name: Enable php-fpm
-      systemd:
-        name: php-fpm
-        enabled: true
-        state: restarted
+    - name: Enable php-fpm nginx mariadb
+      systemd: name={{ item }} enabled=true state=restarted
+      with_items:
+        - php-fpm
+        - nginx
+        - mariadb
 
-    - name: Enable nginx
-      systemd:
-        name: nginx
-        enabled: true
-        state: restarted
+    - name: Add .my.cnf
+      template: src=/vagrant/config/my.cnf dest=/root/.my.cnf owner=root group=root mode=0600
+
+    - name: Set root Password
+      mysql_user: name=root host={{ item }} password={{ mysql_root_password }} state=present
+      with_items:
+        - localhost
+        - 127.0.0.1
+        - ::1
+
+    - name: Reload privilege tables
+      command: 'mysql -ne "{{ item }}"'
+      with_items:
+        - FLUSH PRIVILEGES
+      changed_when: false
+
+    - name: Remove anonymous users
+      command: 'mysql -ne "{{ item }}"'
+      with_items:
+        - DELETE FROM mysql.user WHERE User=''
+      changed_when: false
+
+    - name: Disallow root login remotely
+      command: 'mysql -ne "{{ item }}"'
+      with_items:
+        - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+      changed_when: false
+
+    - name: Remove test database and access to it
+      command: 'mysql -ne "{{ item }}"'
+      with_items:
+        - DROP DATABASE test
+        - DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'
+      changed_when: false
+      ignore_errors: true
+
+    - name: Reload privilege tables
+      command: 'mysql -ne "{{ item }}"'
+      with_items:
+        - FLUSH PRIVILEGES
+      changed_when: false
