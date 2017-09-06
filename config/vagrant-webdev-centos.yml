@@ -5,8 +5,13 @@
 
   vars:
     mysql_root_password: password
+    phpmyadmin_config_file: /etc/phpMyAdmin/config.inc.php
+    phpmyadmin_blowfish_secret: Vq8HIZnY6hl2XQgLu9U83k62XMO7Jf9s
 
   tasks:
+
+    # install packages
+
     - name: Install yum packages
       yum: name={{ item }} state=latest
       with_items:
@@ -22,67 +27,118 @@
         - php-mysql
         - php-pdo
         - php-pecl-xdebug
+        - phpMyAdmin
         - MySQL-python
 
+    # configure php
+
     - name: Update php-fpm user to nginx
-      replace:
-        path: /etc/php-fpm.d/www.conf
-        regexp: '^(user|group) = apache$'
-        replace: '\1 = nginx'
-        backup: yes
+      replace: path=/etc/php-fpm.d/www.conf regexp='^(user|group) = apache$' replace='\1 = nginx'
 
-    - name: Update master php.ini - error_reporting
-      replace:
-        path: /etc/php.ini
-        regexp: '^(error_reporting) = .+'
-        replace: '\1 = E_ALL & ~E_NOTICE & ~E_STRICT'
+    - name: Update php.ini
+      replace: path=/etc/php.ini regexp={{ item.regexp }} replace={{ item.replace }}
+      with_items:
+        - { regexp: '^(error_reporting) = .+',     replace: '\1 = E_ALL & ~E_NOTICE & ~E_STRICT' }
+        - { regexp: '^(display_errors) = .+',      replace: '\1 = On' }
+        - { regexp: '^(html_errors) = .+',         replace: '\1 = On' }
+        - { regexp: '^(post_max_size) = .+',       replace: '\1 = 1024M' }
+        - { regexp: '^(upload_max_filesize) = .+', replace: '\1 = 1024M' }
 
-    - name: Update master php.ini - display_errors
-      replace:
-        path: /etc/php.ini
-        regexp: '^(display_errors) = .+'
-        replace: '\1 = On'
+    - name: Set php session folder permission
+      file: path=/var/lib/php/session owner=root group=nginx state=directory mode=0770
 
-    - name: Update master php.ini - html_errors
-      replace:
-        path: /etc/php.ini
-        regexp: '^(html_errors) = .+'
-        replace: '\1 = On'
-
-    - name: Update master php.ini - post_max_size
-      replace:
-        path: /etc/php.ini
-        regexp: '^(post_max_size) = .+'
-        replace: '\1 = 1024M'
-
-    - name: Update master php.ini - upload_max_filesize
-      replace:
-        path: /etc/php.ini
-        regexp: '^(upload_max_filesize) = .+'
-        replace: '\1 = 1024M'
+    # configure nginx
 
     - name: Get nginx-wwwroot config
-      copy:
-        src: /vagrant/config/nginx-wwwroot.conf
-        dest: /etc/nginx/conf.d/nginx-wwwroot.conf
-        owner: root
-        group: root
-        mode: 0644
+      copy: src=/vagrant/config/{{ item }} dest=/etc/nginx/conf.d/{{ item }} owner=root group=root mode=0644
+      with_items:
+        - nginx-wwwroot.conf
+        - nginx-phpmyadmin.conf
+
+    # configure phpMyAdmin
+
+    - name: Configure phpMyAdmin config directory permission
+      file: path=/etc/phpMyAdmin owner=root group=nginx state=directory mode=0750
+
+    - name: Configure phpMyAdmin config file permission
+      file: path={{ phpmyadmin_config_file }} owner=root group=nginx state=file mode=0640
+
+    - name: Configure phpMyAdmin config file link
+      file: src={{ phpmyadmin_config_file }} dest=/usr/share/phpMyAdmin/config.inc.php state=link owner=root group=root
+
+    - name: Configure phpMyAdmin file
+      replace:
+        path: '{{ phpmyadmin_config_file }}'
+        regexp: '{{ item.regexp }}'
+        replace: '{{ item.replace }}'
+      with_items:
+        - { regexp: "^(.+\\['blowfish_secret'\\])\\s+=\\s+.+$", replace: "\\1 = '{{ phpmyadmin_blowfish_secret }}';"}
+        - { regexp: "^(.+\\['controluser'\\])\\s+=\\s+.+$",     replace: "\\1 = 'root';"}
+        - { regexp: "^(.+\\['controlpass'\\])\\s+=\\s+.+$",     replace: "\\1 = '{{ mysql_root_password }}';"}
+        - { regexp: "^(.+\\['pmadb'\\])\\s+=\\s+.+$",           replace: "\\1 = 'phpmyadmin';"}
+        - { regexp: "^(.+\\['bookmarktable'\\])\\s+=\\s+.+$",   replace: "\\1 = 'pma__bookmark';"}
+        - { regexp: "^(.+\\['column_info'\\])\\s+=\\s+.+$",     replace: "\\1 = 'pma__column_info';"}
+        - { regexp: "^(.+\\['history'\\])\\s+=\\s+.+$",         replace: "\\1 = 'pma__history';"}
+        - { regexp: "^(.+\\['pdf_pages'\\])\\s+=\\s+.+$",       replace: "\\1 = 'pma__pdf_pages';"}
+        - { regexp: "^(.+\\['relation'\\])\\s+=\\s+.+$",        replace: "\\1 = 'pma__relation';"}
+        - { regexp: "^(.+\\['table_coords'\\])\\s+=\\s+.+$",    replace: "\\1 = 'pma__table_coords';"}
+        - { regexp: "^(.+\\['table_info'\\])\\s+=\\s+.+$",      replace: "\\1 = 'pma__table_info';"}
+        - { regexp: "^#*(.+\\['PmaNoRelation_DisableWarning'\\]\\s+=\\s+.+)$", replace: "#\\1"}
+
+    - name: Remove ending php tag
+      lineinfile:
+        path: '{{ phpmyadmin_config_file }}'
+        regexp: '\?>'
+        state: absent
+
+    - name: Add missing phpMyAdmin configs
+      lineinfile:
+        path: '{{ phpmyadmin_config_file }}'
+        line: '{{ item }}'
+      with_items:
+        - "$cfg['Servers'][$i]['central_columns'] = 'pma__central_columns';"
+        - "$cfg['Servers'][$i]['favorite'] = 'pma__favorite';"
+        - "$cfg['Servers'][$i]['navigationhiding'] = 'pma__navigationhiding';"
+        - "$cfg['Servers'][$i]['recent'] = 'pma__recent';"
+        - "$cfg['Servers'][$i]['savedsearches'] = 'pma__savedsearches';"
+        - "$cfg['Servers'][$i]['table_uiprefs'] = 'pma__table_uiprefs';"
+        - "$cfg['Servers'][$i]['tracking'] = 'pma__tracking';"
+        - "$cfg['Servers'][$i]['userconfig'] = 'pma__userconfig';"
+        - "$cfg['Servers'][$i]['usergroups'] = 'pma__usergroups';"
+        - "$cfg['Servers'][$i]['users'] = 'pma__users';"
+
+    # enable services
 
     - name: Enable php-fpm nginx mariadb
-      systemd: name={{ item }} enabled=true state=restarted
+      systemd: name={{ item }} enabled=true
       with_items:
         - php-fpm
         - nginx
         - mariadb
 
-    - name: Add .my.cnf
-      template: src=/vagrant/config/my.cnf dest=/root/.my.cnf owner=root group=root mode=0600
+    # start services
+
+    - name: Restart php-fpm nginx mariadb
+      systemd: name={{ item }} state=restarted
+      with_items:
+        - php-fpm
+        - nginx
+        - mariadb
+      changed_when: false
+
+    # secure mysql
 
     - name: Set root Password
       mysql_user: name=root host={{ item }} password={{ mysql_root_password }} state=present
       with_items:
         - localhost
+
+    - name: Add .my.cnf
+      template: src=/vagrant/config/my.cnf dest=/root/.my.cnf owner=root group=root mode=0600
+
+    - name: Set other root passwords on localhost
+      mysql_user: name=root host={{ item }} password={{ mysql_root_password }} state=present
+      with_items:
         - 127.0.0.1
         - ::1
 
@@ -116,4 +172,10 @@
       command: 'mysql -ne "{{ item }}"'
       with_items:
         - FLUSH PRIVILEGES
+      changed_when: false
+
+    # configure phpMyAdmin database
+
+    - name: Configure phpMyAdmin database
+      shell: 'mysql < /usr/share/phpMyAdmin/sql/create_tables.sql'
       changed_when: false
