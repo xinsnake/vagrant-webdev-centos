@@ -18,25 +18,37 @@
         - mariadb
         - mariadb-server
         - nginx
-        - php
-        - php-cli
-        - php-fpm
-        - php-gd
-        - php-mbstring
-        - php-mcrypt
-        - php-mysql
-        - php-pdo
-        - php-pecl-xdebug
+        - php56-php
+        - php56-php-cli
+        - php56-php-fpm
+        - php56-php-gd
+        - php56-php-mbstring
+        - php56-php-mcrypt
+        - php56-php-mysql
+        - php56-php-pdo
+        - php56-php-pecl-xdebug
+        - php72-php
+        - php72-php-cli
+        - php72-php-fpm
+        - php72-php-gd
+        - php72-php-mbstring
+        - php72-php-mcrypt
+        - php72-php-mysql
+        - php72-php-pdo
+        - php72-php-pecl-xdebug
         - phpMyAdmin
         - MySQL-python
 
-    # configure php
+    # configure php56
 
     - name: Update php-fpm user to nginx
-      replace: path=/etc/php-fpm.d/www.conf regexp='^(user|group) = apache$' replace='\1 = nginx'
+      replace: path=/opt/remi/php56/root/etc/php-fpm.d/www.conf regexp={{ item.regexp }} replace={{ item.replace }}
+      with_items:
+        - { regexp: '^(user|group) = apache$', replace: '\1 = nginx' }
+        - { regexp: '^(listen) = .+',          replace: '\1 = 127.0.0.1:9056' }
 
     - name: Update php.ini
-      replace: path=/etc/php.ini regexp={{ item.regexp }} replace={{ item.replace }}
+      replace: path=/opt/remi/php56/root/etc/php.ini regexp={{ item.regexp }} replace={{ item.replace }}
       with_items:
         - { regexp: '^(error_reporting) = .+',     replace: '\1 = E_ALL & ~E_NOTICE & ~E_STRICT' }
         - { regexp: '^(display_errors) = .+',      replace: '\1 = On' }
@@ -45,7 +57,27 @@
         - { regexp: '^(upload_max_filesize) = .+', replace: '\1 = 1024M' }
 
     - name: Set php session folder permission
-      file: path=/var/lib/php/session owner=root group=nginx state=directory mode=0770
+      file: path=/opt/remi/php56/root/var/lib/php/session owner=root group=nginx state=directory mode=0770
+
+    # configure php72
+
+    - name: Update php-fpm user to nginx
+      replace: path=/etc/opt/remi/php72/php-fpm.d/www.conf regexp={{ item.regexp }} replace={{ item.replace }}
+      with_items:
+        - { regexp: '^(user|group) = apache$', replace: '\1 = nginx' }
+        - { regexp: '^(listen) = .+',          replace: '\1 = 127.0.0.1:9072' }
+
+    - name: Update php.ini
+      replace: path=/etc/opt/remi/php72/php.ini regexp={{ item.regexp }} replace={{ item.replace }}
+      with_items:
+        - { regexp: '^(error_reporting) = .+',     replace: '\1 = E_ALL & ~E_NOTICE & ~E_STRICT' }
+        - { regexp: '^(display_errors) = .+',      replace: '\1 = On' }
+        - { regexp: '^(html_errors) = .+',         replace: '\1 = On' }
+        - { regexp: '^(post_max_size) = .+',       replace: '\1 = 1024M' }
+        - { regexp: '^(upload_max_filesize) = .+', replace: '\1 = 1024M' }
+
+    - name: Set php session folder permission
+      file: path=/var/opt/remi/php72/lib/php/session owner=root group=nginx state=directory mode=0770
 
     # configure nginx
 
@@ -112,7 +144,8 @@
     - name: Enable php-fpm nginx mariadb
       systemd: name={{ item }} enabled=true
       with_items:
-        - php-fpm
+        - php56-php-fpm
+        - php72-php-fpm
         - nginx
         - mariadb
 
@@ -121,7 +154,8 @@
     - name: Restart php-fpm nginx mariadb
       systemd: name={{ item }} state=restarted
       with_items:
-        - php-fpm
+        - php56-php-fpm
+        - php72-php-fpm
         - nginx
         - mariadb
       changed_when: false

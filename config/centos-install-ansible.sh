@@ -8,7 +8,8 @@ yum update -y
 
 # install ansible
 wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum localinstall -y epel-release-latest-7.noarch.rpm
+wget https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+yum localinstall -y epel-release-latest-7.noarch.rpm remi-release-7.rpm
 yum install -y ansible
 
 # configure ansible hosts

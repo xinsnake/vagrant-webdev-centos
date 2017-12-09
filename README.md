@@ -22,6 +22,8 @@ $ vagrant up
 * After that please add the following lines to your "hosts" file:
 ```
 192.168.156.10      localhost.dev
+192.168.156.10      php56.localhost.dev
+192.168.156.10      php72.localhost.dev
 192.168.156.10      pm.localhost.dev
 ```
 
