@@ -89,7 +89,7 @@
 
     - name: Create nginx certificate directory
       file:
-        path: /etc/nginx/conf.d
+        path: /etc/nginx/certs
         state: directory
         mode: 0755
 
