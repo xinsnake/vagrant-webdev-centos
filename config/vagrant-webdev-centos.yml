@@ -87,6 +87,12 @@
         - nginx-wwwroot.conf
         - nginx-phpmyadmin.conf
 
+    - name: Get nginx-wwwroot config
+      copy: src=/vagrant/config/{{ item }} dest=/etc/nginx/certs/{{ item }} owner=root group=root mode=0640
+      with_items:
+        - nginx-selfsigned.crt
+        - nginx-selfsigned.key
+
     # configure phpMyAdmin
 
     - name: Configure phpMyAdmin config directory permission
