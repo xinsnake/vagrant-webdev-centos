@@ -22,15 +22,15 @@ $ vagrant up
 
 * After that please add the following lines to your "hosts" file:
 ```
-192.168.156.10      localhost.dev
-192.168.156.10      php56.localhost.dev
-192.168.156.10      php72.localhost.dev
-192.168.156.10      pm.localhost.dev
+192.168.156.10      localhost.localvm
+192.168.156.10      php56.localhost.localvm
+192.168.156.10      php72.localhost.localvm
+192.168.156.10      pm.localhost.localvm
 ```
 
 * Default VirtualHost
-  * localhost.dev (mapped to /vagrant/wwwroot)
-  * pm.localhost.dev (mapped to /usr/share/phpMyAdmin) default root password: `password`
+  * localhost.localvm (mapped to /vagrant/wwwroot)
+  * pm.localhost.localvm (mapped to /usr/share/phpMyAdmin) default root password: `password`
 
 * Please note:
   * Keep your internet conection on and if you have a data limit please watch out. I don't know how much data it will
