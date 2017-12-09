@@ -1,7 +1,8 @@
 # vagrant-webdev-centos
 
 Once upon a time you need a PHP and MySQL on a Linux machine to do your development.
-It is called a LAMP stack because you have Linux + Apache + MySQL + PHP.
+It is called a LAMP stack because you have Linux + Apache + MySQL + PHP. Of course,
+I replaced Apache with Nginx because... who is still using Apache?
 
 These days, however, you may not need that most of the time because you have so many
 fun things to play with and PHP + MySQL is not the "cool kids'" game anymore.
