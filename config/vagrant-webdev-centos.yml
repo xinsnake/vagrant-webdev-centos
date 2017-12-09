@@ -81,13 +81,19 @@
 
     # configure nginx
 
-    - name: Get nginx-wwwroot config
+    - name: Get nginx web config
       copy: src=/vagrant/config/{{ item }} dest=/etc/nginx/conf.d/{{ item }} owner=root group=root mode=0644
       with_items:
         - nginx-wwwroot.conf
         - nginx-phpmyadmin.conf
 
-    - name: Get nginx-wwwroot config
+    - name: Create nginx certificate directory
+      file:
+        path: /etc/nginx/conf.d
+        state: directory
+        mode: 0755
+
+    - name: Get nginx certificates
       copy: src=/vagrant/config/{{ item }} dest=/etc/nginx/certs/{{ item }} owner=root group=root mode=0640
       with_items:
         - nginx-selfsigned.crt
